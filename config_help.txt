@@ -1,3 +1,4 @@
+Dummy edit
 Usage:  configure [options] [assignments]
 
 Configure understands variable assignments like VAR=value on the command line.
