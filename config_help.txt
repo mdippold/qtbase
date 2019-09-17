@@ -1,4 +1,5 @@
 Usage:  configure [options] [assignments]
+Another dummy change
 
 Configure understands variable assignments like VAR=value on the command line.
 Each uppercased library name (obtainable with -list-libraries) supports the
