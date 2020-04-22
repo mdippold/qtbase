@@ -44,13 +44,14 @@
 #include <EGL/egl.h>
 #include <QWaitCondition>
 #include <QtCore/private/qjni_p.h>
+#include <QtCore/private/qjnihelpers_p.h>
 
 #include "androidsurfaceclient.h"
 #include "qandroidplatformwindow.h"
 
 QT_BEGIN_NAMESPACE
 
-class QAndroidPlatformOpenGLWindow : public QAndroidPlatformWindow, public AndroidSurfaceClient
+class QAndroidPlatformOpenGLWindow : public QAndroidPlatformWindow, public AndroidSurfaceClient, QtAndroidPrivate::ResumePauseListener
 {
 public:
     explicit QAndroidPlatformOpenGLWindow(QWindow *window, EGLDisplay display);
@@ -65,11 +66,14 @@ public:
     void applicationStateChanged(Qt::ApplicationState) override;
 
     void repaint(const QRegion &region) override;
+    void handleStop() override;
+    void handleStart() override;
 
 protected:
     void surfaceChanged(JNIEnv *jniEnv, jobject surface, int w, int h) override;
     void createEgl(EGLConfig config);
     void clearEgl();
+    bool surfaceCreatable();
 
 private:
     EGLDisplay m_eglDisplay = EGL_NO_DISPLAY;
@@ -81,6 +85,8 @@ private:
     QWaitCondition m_surfaceWaitCondition;
     QSurfaceFormat m_format;
     QRect m_oldGeometry;
+    bool m_surfaceCreateable;
+    QMutex m_lifecyleMutex;
 };
 
 QT_END_NAMESPACE

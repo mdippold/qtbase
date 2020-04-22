@@ -58,12 +58,14 @@
 QT_BEGIN_NAMESPACE
 
 QAndroidPlatformOpenGLWindow::QAndroidPlatformOpenGLWindow(QWindow *window, EGLDisplay display)
-    :QAndroidPlatformWindow(window), m_eglDisplay(display)
+    :QAndroidPlatformWindow(window), m_eglDisplay(display), m_surfaceCreateable(false)
 {
+    QtAndroidPrivate::registerResumePauseListener(this);
 }
 
 QAndroidPlatformOpenGLWindow::~QAndroidPlatformOpenGLWindow()
 {
+    QtAndroidPrivate::unregisterResumePauseListener(this);
     m_surfaceWaitCondition.wakeOne();
     lockSurface();
     if (m_nativeSurfaceId != -1)
@@ -95,6 +97,18 @@ void QAndroidPlatformOpenGLWindow::repaint(const QRegion &region)
     platformScreen()->setDirty(dirtyRegion);
 }
 
+void QAndroidPlatformOpenGLWindow::handleStop()
+{
+    QMutexLocker locker(&m_lifecyleMutex);
+    m_surfaceCreateable = false;
+}
+
+void QAndroidPlatformOpenGLWindow::handleStart()
+{
+    QMutexLocker locker(&m_lifecyleMutex);
+    m_surfaceCreateable = true;
+}
+
 void QAndroidPlatformOpenGLWindow::setGeometry(const QRect &rect)
 {
     if (rect == geometry())
@@ -122,7 +136,7 @@ void QAndroidPlatformOpenGLWindow::setGeometry(const QRect &rect)
 
 EGLSurface QAndroidPlatformOpenGLWindow::eglSurface(EGLConfig config)
 {
-    if (QAndroidEventDispatcherStopper::stopped() || QGuiApplication::applicationState() == Qt::ApplicationSuspended)
+    if (QAndroidEventDispatcherStopper::stopped() || !surfaceCreatable())
         return m_eglSurface;
 
     QMutexLocker lock(&m_surfaceMutex);
@@ -134,7 +148,17 @@ EGLSurface QAndroidPlatformOpenGLWindow::eglSurface(EGLConfig config)
 
         const bool windowStaysOnTop = bool(window()->flags() & Qt::WindowStaysOnTopHint);
         m_nativeSurfaceId = QtAndroid::createSurface(this, geometry(), windowStaysOnTop, 32);
-        m_surfaceWaitCondition.wait(&m_surfaceMutex);
+
+        if (m_nativeSurfaceId == -1)
+            return m_eglSurface;
+
+        while (!m_surfaceWaitCondition.wait(&m_surfaceMutex, 100)) {
+            if (!surfaceCreatable()) {
+                QtAndroid::destroySurface(m_nativeSurfaceId);
+                m_nativeSurfaceId = -1;
+                return m_eglSurface;
+            }
+        }
     }
 
     if (m_eglSurface == EGL_NO_SURFACE) {
@@ -209,6 +233,12 @@ void QAndroidPlatformOpenGLWindow::clearEgl()
         ANativeWindow_release(m_nativeWindow);
         m_nativeWindow = 0;
     }
+}
+
+bool QAndroidPlatformOpenGLWindow::surfaceCreatable()
+{
+    QMutexLocker locker(&m_lifecyleMutex);
+    return m_surfaceCreateable;
 }
 
 void QAndroidPlatformOpenGLWindow::surfaceChanged(JNIEnv *jniEnv, jobject surface, int w, int h)

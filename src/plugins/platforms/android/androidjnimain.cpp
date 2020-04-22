@@ -675,6 +675,10 @@ static void updateApplicationState(JNIEnv */*env*/, jobject /*thiz*/, jint state
         QtAndroidPrivate::handleResume();
     else if (state == Qt::ApplicationInactive)
         QtAndroidPrivate::handlePause();
+    else if (state == Qt::ApplicationHidden)
+        QtAndroidPrivate::handleStart();
+    else if (state == Qt::ApplicationSuspended)
+        QtAndroidPrivate::handleStop();
     lock.relock();
     if (!m_androidPlatformIntegration)
         return;

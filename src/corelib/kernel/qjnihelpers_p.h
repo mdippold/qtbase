@@ -84,6 +84,8 @@ namespace QtAndroidPrivate
         virtual ~ResumePauseListener();
         virtual void handlePause();
         virtual void handleResume();
+        virtual void handleStop();
+        virtual void handleStart();
     };
 
     class Q_CORE_EXPORT GenericMotionEventListener
@@ -140,6 +142,8 @@ namespace QtAndroidPrivate
 
     Q_CORE_EXPORT void handlePause();
     Q_CORE_EXPORT void handleResume();
+    Q_CORE_EXPORT void handleStop();
+    Q_CORE_EXPORT void handleStart();
     Q_CORE_EXPORT void registerResumePauseListener(ResumePauseListener *listener);
     Q_CORE_EXPORT void unregisterResumePauseListener(ResumePauseListener *listener);
 

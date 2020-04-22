@@ -61,6 +61,8 @@ namespace QtAndroidPrivate {
     ResumePauseListener::~ResumePauseListener() {}
     void ResumePauseListener::handlePause() {}
     void ResumePauseListener::handleResume() {}
+    void ResumePauseListener::handleStop() {}
+    void ResumePauseListener::handleStart() {}
     GenericMotionEventListener::~GenericMotionEventListener() {}
     KeyEventListener::~KeyEventListener() {}
 }
@@ -285,6 +287,22 @@ void QtAndroidPrivate::handleResume()
     const QList<QtAndroidPrivate::ResumePauseListener *> &listeners = g_resumePauseListeners()->listeners;
     for (int i=0; i<listeners.size(); ++i)
         listeners.at(i)->handleResume();
+}
+
+void QtAndroidPrivate::handleStop()
+{
+    QMutexLocker locker(&g_resumePauseListeners()->mutex);
+    const QList<QtAndroidPrivate::ResumePauseListener *> &listeners = g_resumePauseListeners()->listeners;
+    for (int i=0; i<listeners.size(); ++i)
+        listeners.at(i)->handleStop();
+}
+
+void QtAndroidPrivate::handleStart()
+{
+    QMutexLocker locker(&g_resumePauseListeners()->mutex);
+    const QList<QtAndroidPrivate::ResumePauseListener *> &listeners = g_resumePauseListeners()->listeners;
+    for (int i=0; i<listeners.size(); ++i)
+        listeners.at(i)->handleStart();
 }
 
 static inline bool exceptionCheck(JNIEnv *env)
