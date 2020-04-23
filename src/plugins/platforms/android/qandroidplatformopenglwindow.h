@@ -72,6 +72,7 @@ protected:
     void clearEgl();
 
 private:
+    enum SurfaceRequestState { SurfaceRequestIdle, SurfaceRequestPending, SurfaceRequestComplete };
     EGLDisplay m_eglDisplay = EGL_NO_DISPLAY;
     EGLSurface m_eglSurface = EGL_NO_SURFACE;
     EGLNativeWindowType m_nativeWindow = nullptr;
@@ -81,6 +82,7 @@ private:
     QWaitCondition m_surfaceWaitCondition;
     QSurfaceFormat m_format;
     QRect m_oldGeometry;
+    SurfaceRequestState m_surfaceRequestState;
 };
 
 QT_END_NAMESPACE

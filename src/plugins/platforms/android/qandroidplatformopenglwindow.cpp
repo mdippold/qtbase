@@ -58,7 +58,7 @@
 QT_BEGIN_NAMESPACE
 
 QAndroidPlatformOpenGLWindow::QAndroidPlatformOpenGLWindow(QWindow *window, EGLDisplay display)
-    :QAndroidPlatformWindow(window), m_eglDisplay(display)
+    :QAndroidPlatformWindow(window), m_eglDisplay(display), m_surfaceRequestState(SurfaceRequestIdle)
 {
 }
 
@@ -133,8 +133,22 @@ EGLSurface QAndroidPlatformOpenGLWindow::eglSurface(EGLConfig config)
             return m_eglSurface;
 
         const bool windowStaysOnTop = bool(window()->flags() & Qt::WindowStaysOnTopHint);
+        m_surfaceRequestState = SurfaceRequestPending;
         m_nativeSurfaceId = QtAndroid::createSurface(this, geometry(), windowStaysOnTop, 32);
-        m_surfaceWaitCondition.wait(&m_surfaceMutex);
+        if (m_nativeSurfaceId == -1)
+            return m_eglSurface;
+
+        do {
+            m_surfaceWaitCondition.wait(&m_surfaceMutex, 100);
+        } while (m_surfaceRequestState == SurfaceRequestPending && QtAndroid::applicationState() != Qt::ApplicationSuspended);
+
+        if (m_surfaceRequestState != SurfaceRequestComplete) {
+            if (m_nativeSurfaceId != -1) {
+                QtAndroid::destroySurface(m_nativeSurfaceId);
+                m_nativeSurfaceId = -1;
+            }
+            return m_eglSurface;
+        }
     }
 
     if (m_eglSurface == EGL_NO_SURFACE) {
@@ -168,6 +182,8 @@ void QAndroidPlatformOpenGLWindow::applicationStateChanged(Qt::ApplicationState 
         if (m_nativeSurfaceId != -1) {
             QtAndroid::destroySurface(m_nativeSurfaceId);
             m_nativeSurfaceId = -1;
+            m_surfaceRequestState = SurfaceRequestIdle;
+            m_surfaceWaitCondition.wakeOne();
         }
         clearEgl();
         unlockSurface();
@@ -219,8 +235,10 @@ void QAndroidPlatformOpenGLWindow::surfaceChanged(JNIEnv *jniEnv, jobject surfac
 
     lockSurface();
     m_androidSurfaceObject = surface;
-    if (surface) // wait until we have a valid surface to draw into
+    if (surface) { // wait until we have a valid surface to draw into
+        m_surfaceRequestState = SurfaceRequestComplete;
         m_surfaceWaitCondition.wakeOne();
+    }
     unlockSurface();
 
     if (surface) {

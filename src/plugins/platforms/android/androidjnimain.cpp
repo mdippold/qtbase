@@ -43,6 +43,7 @@
 #include <semaphore.h>
 #include <qplugin.h>
 #include <qdebug.h>
+#include <qatomic.h>
 
 #include "androidjnimain.h"
 #include "androidjniaccessibility.h"
@@ -122,6 +123,8 @@ static AndroidAssetsFileEngineHandler *m_androidAssetsFileEngineHandler = nullpt
 static const char m_qtTag[] = "Qt";
 static const char m_classErrorMsg[] = "Can't find class \"%s\"";
 static const char m_methodErrorMsg[] = "Can't find method \"%s%s\"";
+
+static QAtomicInt m_applicationState(Qt::ApplicationSuspended);
 
 namespace QtAndroid
 {
@@ -439,6 +442,11 @@ namespace QtAndroid
         return block;
     }
 
+    Qt::ApplicationState applicationState()
+    {
+        return Qt::ApplicationState(m_applicationState.loadAcquire());
+    }
+
 } // namespace QtAndroid
 
 static jboolean startQtAndroidPlugin(JNIEnv *env, jobject /*object*/, jstring paramsString, jstring environmentString)
@@ -662,6 +670,8 @@ static void updateWindow(JNIEnv */*env*/, jobject /*thiz*/)
 
 static void updateApplicationState(JNIEnv */*env*/, jobject /*thiz*/, jint state)
 {
+    m_applicationState.storeRelease(state);
+
     QMutexLocker lock(&m_platformMutex);
     if (!m_main || !m_androidPlatformIntegration) {
         m_pendingApplicationState = state;

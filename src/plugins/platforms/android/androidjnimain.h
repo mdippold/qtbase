@@ -100,6 +100,7 @@ namespace QtAndroid
 
     QString deviceName();
     bool blockEventLoopsWhenSuspended();
+    Qt::ApplicationState applicationState();
 }
 
 QT_END_NAMESPACE
