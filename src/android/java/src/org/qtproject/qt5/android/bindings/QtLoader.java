@@ -181,7 +181,7 @@ public abstract class QtLoader {
     }
     // Implement in subclass
 
-    private final List<String> supportedAbis = Arrays.asList(Build.SUPPORTED_ABIS);
+    private final List<String> supportedAbis = new ArrayList<String>() {{ add(Build.CPU_ABI); }}; 
     private String preferredAbi = null;
 
     private ArrayList<String> prefferedAbiLibs(String []libs)

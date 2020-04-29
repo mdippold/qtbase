@@ -89,6 +89,8 @@ import android.view.inputmethod.EditorInfo;
 
 public class ExtractStyle {
 
+    native static int[] extractChunkInfo(byte[] chunkData);
+    native static int[] extractNativeChunkInfo(int nativeChunk);
     native static int[] extractChunkInfo20(byte[] chunkData);
     native static int[] extractNativeChunkInfo20(long nativeChunk);
 
@@ -343,7 +345,10 @@ public class ExtractStyle {
         }
 
         public void drawPatch(Bitmap bmp, byte[] chunks, RectF dst, Paint paint) {
-            chunkData = extractChunkInfo20(chunks);
+            if (Build.VERSION.SDK_INT > 19)
+                chunkData = extractChunkInfo20(chunks);
+            else
+                chunkData = extractChunkInfo(chunks);
         }
     }
 
@@ -693,6 +698,10 @@ public class ExtractStyle {
             json.put("thicknessRatio",gradientStateClass.getField("mThicknessRatio").getFloat(obj));
             json.put("innerRadius",gradientStateClass.getField("mInnerRadius").getInt(obj));
             json.put("thickness",gradientStateClass.getField("mThickness").getInt(obj));
+            if (Build.VERSION.SDK_INT < 20) {
+                json.put("solidColor",gradientStateClass.getField("mSolidColor").getInt(obj));
+                json.put("strokeColor",gradientStateClass.getField("mStrokeColor").getInt(obj));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -793,7 +802,10 @@ public class ExtractStyle {
             Object state = getAccessibleField(NinePatchDrawable.class, "mNinePatchState").get(d);
             np = (NinePatch) getAccessibleField(state.getClass(), "mNinePatch").get(state);
         }
-        return getJsonChunkInfo(extractNativeChunkInfo20(getAccessibleField(np.getClass(), "mNativeChunk").getLong(np)));
+        if (Build.VERSION.SDK_INT > 19)
+            return getJsonChunkInfo(extractNativeChunkInfo20(getAccessibleField(np.getClass(), "mNativeChunk").getLong(np)));
+        else
+            return getJsonChunkInfo(extractNativeChunkInfo(getAccessibleField(np.getClass(), "mNativeChunk").getInt(np)));
     }
 
     class DrawableCache
@@ -1002,10 +1014,12 @@ public class ExtractStyle {
                     json.put("tileModeY", bitmapDrawable.getTileModeY());
                     json.put("antialias", (Boolean) BitmapDrawable.class.getMethod("hasAntiAlias").invoke(bitmapDrawable));
                     json.put("mipMap", (Boolean) BitmapDrawable.class.getMethod("hasMipMap").invoke(bitmapDrawable));
-                    json.put("tintMode", (PorterDuff.Mode) BitmapDrawable.class.getMethod("getTintMode").invoke(bitmapDrawable));
-                    ColorStateList tintList = (ColorStateList) BitmapDrawable.class.getMethod("getTint").invoke(bitmapDrawable);
-                    if (tintList != null)
-                        json.put("tintList", getColorStateList(tintList));
+                    if (Build.VERSION.SDK_INT >= 21) {
+                        json.put("tintMode", (PorterDuff.Mode) BitmapDrawable.class.getMethod("getTintMode").invoke(bitmapDrawable));
+                        ColorStateList tintList = (ColorStateList) BitmapDrawable.class.getMethod("getTint").invoke(bitmapDrawable);
+                        if (tintList != null)
+                            json.put("tintList", getColorStateList(tintList));
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -1738,8 +1752,10 @@ public class ExtractStyle {
             json.put("Switch_switchPadding", a.getDimensionPixelSize(getField(styleableClass, "Switch_switchPadding"), 0));
             json.put("Switch_thumbTextPadding", a.getDimensionPixelSize(getField(styleableClass, "Switch_thumbTextPadding"), 0));
 
-            json.put("Switch_showText", a.getBoolean(getField(styleableClass, "Switch_showText"), true));
-            json.put("Switch_splitTrack", a.getBoolean(getField(styleableClass, "Switch_splitTrack"), false));
+            if (Build.VERSION.SDK_INT >= 21) {
+                json.put("Switch_showText", a.getBoolean(getField(styleableClass, "Switch_showText"), true));
+                json.put("Switch_splitTrack", a.getBoolean(getField(styleableClass, "Switch_splitTrack"), false));
+            }
 
             a.recycle();
             jsonWriter.name(styleName).value(json);
